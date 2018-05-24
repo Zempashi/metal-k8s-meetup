@@ -1,0 +1,23 @@
+- hosts: localhost
+  gather_facts: False
+  tags: ['spawn']
+  roles:
+    - role: local_ssh_key
+    - role: cluster_terraform
+    - role: metal_k8s_inventory
+    - role: dump_inventory
+      when: dump_inventory|default(True)|bool
+      vars:
+        inventory_groups:
+         - etcd
+         - kube-master
+         - kube-node
+        groups_children:
+          k8s-cluster: ['kube-master', 'kube-node']
+        extra_group_vars:
+          k8s-cluster: ['metal_k8s_lvm']
+    - role: wait_ssh_connect
+      group_name: 'k8s-cluster'
+
+- import_playbook: metal-k8s/metal-k8s.yml
+  when: not (state|default('present') == 'absent')

@@ -1,0 +1,7 @@
+debug: False
+
+metal_k8s_dir: '{{ playbook_dir }}/metal-k8s'
+
+inventory_dir_name: "{{ stack_name|default('cluster1') }}"
+
+inventory_dir_: '{{ (metal_k8s_dir ~ "/inventories/" ~ inventory_dir_name)|realpath }}'

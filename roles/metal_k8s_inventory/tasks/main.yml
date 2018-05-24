@@ -1,0 +1,28 @@
+- name: 'make scality.cloud inventory dir'
+  file:
+    dest: '{{ metal_k8s_dir }}/inventories/{{ inventory_dir_name }}'
+    state: directory
+
+- name: 'set inventory path (for dump_inventory)'
+  set_fact:
+    inventory_dir: '{{ inventory_dir_ }}'
+    inventory_path: '{{ inventory_dir_ }}/hosts.ini'
+
+- debug:
+    var: inventory_dir_
+  tags:
+    - display_inventory_dir
+
+- name: 'export inventory var to other machine'
+  add_host:
+    groups: '{{ item.group }}'
+    name: '{{ item.server }}'
+    inventory_dir: '{{ inventory_dir_ }}'
+  check_mode: False
+  changed_when: False
+  with_list: >-
+    [ {% for group in ['etcd', 'kube-master', 'kube-node'] -%}
+        {%- for server in groups[group]|default([]) -%}
+          {{ dict(server=server, group=group) }},
+        {%- endfor -%}
+      {%- endfor -%} ]

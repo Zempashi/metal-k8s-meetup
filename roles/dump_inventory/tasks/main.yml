@@ -1,0 +1,58 @@
+- name: 'compute group vars'
+  set_fact:
+    _group_vars: >-
+      {%- set group_vars = {} -%}
+      {%- for group, var_list in extra_group_vars.items() if groups[group] -%}
+        {%- for var_name in var_list -%}
+          {%- set group_vars_dict = group_vars.setdefault(group, {}) -%}
+          {%- set value = hostvars[groups[group]|first][var_name] -%}
+          {%- if value is defined -%}
+            {%- set _ = group_vars_dict.update({var_name: value}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ group_vars }}
+  when: state == "present"
+
+- debug:
+    var: _group_vars
+  when: debug|bool
+
+- name: 'compute list of server var'
+  set_fact:
+    _server_vars: >-
+      {%- set all_servers = [] -%}
+      {%- set server_vars = {} -%}
+      {#- ## compute list of servers ## -#}
+      {%- for group in inventory_groups + groups_children.keys()|list if groups[group]|default -%}
+          {%- set _ = all_servers.extend(groups[group]) -%}
+      {%- endfor -%}
+      {#- ## assign default variable to all servers ## -#}
+      {%- set all_servers = all_servers|unique -%}
+      {%- for server in all_servers -%}
+        {%- set _ = server_vars.update({server: default_inventory_vars}) -%}
+      {%- endfor -%}
+      {#- ## try to make host_vars exception for host that have different values ## -#}
+      {%- for group, var_list in extra_group_vars.items() if groups[group]|default -%}
+        {%- for var_name in var_list -%}
+          {%- for server in groups[group] -%}
+            {%- if hostvars[server][var_name]|default != _group_vars[group][var_name]|default -%}
+                 {%- set _ = server_vars[server].append(var_name)-%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ server_vars }}
+
+- debug:
+    var: _server_vars
+  when: debug|bool
+
+- name: 'dump inventory'
+  template:
+    src: inventory.cfg.j2
+    dest: '{{ inventory_path }}'
+  delegate_to: 'localhost'
+  when:
+    - state == "present"
+    - dump_inventory|bool

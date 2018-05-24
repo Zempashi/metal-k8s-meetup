@@ -1,0 +1,15 @@
+debug: False
+
+inventory_path: '{{ playbook_dir }}/inventory.cfg'
+
+dump_inventory: True
+
+groups_children: {}
+extra_group_vars: {}
+
+default_inventory_vars:
+    - ansible_host
+    - ansible_user
+    - ansible_become
+    - ansible_become_method
+    - ansible_python_interpreter

@@ -1,0 +1,4 @@
+*.swp
+*.retry
+.shell-env
+terraform.tfstate

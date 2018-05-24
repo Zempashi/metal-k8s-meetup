@@ -1,0 +1,27 @@
+
+{% for server, var_list in _server_vars.items() %}
+{% set svars = hostvars[server] %}
+{{ server }}{% for var in var_list %}{% if svars[var] is defined %} {{ var }}={{ svars[var] }}{% endif %}{% endfor %}
+
+{% endfor %}
+{% for group in inventory_groups|difference(['all', 'ungrouped'] + groups_children.keys()|list) %}
+
+[{{ group }}]
+{% for server in groups[group]|default([]) %}
+{{ server }}
+{% endfor %}
+{% endfor %}
+{% for group, children in groups_children.items() %}
+
+[{{ group }}:children]
+{% for child in children %}
+{{ child }}
+{% endfor %}
+{% endfor %}
+{% for group, variables in _group_vars.items() %}
+
+[{{ group }}:vars]
+{% for var_name, value in variables.items() %}
+{{ var_name }}={{ value }}
+{% endfor %}
+{% endfor %}

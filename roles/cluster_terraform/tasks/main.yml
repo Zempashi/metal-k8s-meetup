@@ -1,0 +1,83 @@
+- name: 'init terraform'
+  command: terraform init
+  args:
+    chdir: '{{ role_path }}/files/terraform'
+    creates: '{{ role_path }}/files/terraform/.terraform'
+
+- name: >
+    {%- set verb = dict(present='Create/Update', absent='Delete') -%}
+    {%- set state = state|default('present') -%}
+    {{ verb[state] }} metal-k8s infrastructure
+  terraform:
+    project_path: '{{ role_path }}/files/terraform'
+    state_file: '{{ tfstate_file|default(omit) }}'
+    variables: >-
+      {%- set variables = {} -%}
+      {%- if aws_profile is defined -%}
+        {%- set _ = variables.update({"aws_profile": aws_profile}) -%}
+      {%- endif -%}
+      {%- if aws_region is defined -%}
+        {%- set _ = variables.update({"aws_region": aws_region}) -%}
+      {%- endif -%}
+      {%- if node_type is defined -%}
+        {%- set _ = variables.update({"node_type": node_type}) -%}
+      {%- endif -%}
+      {%- if ssh_key_path is defined -%}
+        {%- set _ = variables.update({"ssh_key_path": ssh_key_path}) -%}
+      {%- endif -%}
+      {%- if vpc_name is defined -%}
+        {%- set _ = variables.update({"vpc_name": vpc_name}) -%}
+      {%- endif -%}
+      {%- if vpc_subnet_id is defined -%}
+        {%- set _ = variables.update({"vpc_subnet_id": vpc_subnet_id}) -%}
+      {%- endif -%}
+      {{ variables }}
+    state: '{{ state }}'
+  register: cluster_terraform
+
+- debug: var=cluster_terraform
+
+- name: 'Make to ease access to the state file'
+  file:
+    src: '{{ tfstate_file|default(role_path ~ "/files/terraform/terraform.tfstate") }}'
+    dest: '{{ tfstate_link }}'
+    state: link
+  when: tfstate_file is undefined
+
+- name: 'get ec2 facts'
+  ec2_instance_facts:
+    region: '{{ aws_region|default("us-east-1") }}'
+    profile: '{{ aws_profile|default(omit) }}'
+    instance_ids: >-
+      {{ (cluster_terraform.outputs.metal_k8s_instance_ids|default).value|default([]) }}
+  register: metal_k8s_ec2
+  when: state == 'present'
+
+- name: 'Add ec2 instance'
+  add_host:
+    groups: >-
+      [ {%- if item.0 in range(5)|list -%}
+        'etcd',
+      {% endif %}
+      {%- if item.0 in range(3)|list -%}
+        'kube-master',
+      {%- endif -%}
+        'k8s-cluster',
+        'kube-node' ]
+    name: '{{ item.1.public_dns_name|default(item.1.private_dns_name, True) }}'
+    ansible_host: >-
+      {%- if item.1.public_dns_name -%}
+        {{ omit }}
+      {%- elif item.1.public_ip_address -%}
+        {{ item.1.public_ip_address }}
+      {%- else -%}
+        {{ item.1.private_ip_address }}
+      {%- endif -%}
+    ansible_user: centos
+    ansible_become: True
+    metal_k8s_lvm: {'vgs': {'kubevg': {'drives': ['/dev/xvdf']}}}
+  check_mode: False
+  changed_when: False
+  loop_control:
+    label: '{{ item.1.public_dns_name|default(item.1.private_dns_name, True) }}'
+  with_indexed_items: '{{ metal_k8s_ec2.instances|default([]) }}'
