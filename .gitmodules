@@ -1,0 +1,4 @@
+[submodule "metal-k8s"]
+	path = metal-k8s
+	url = https://github.com/scality/metal-k8s
+	branch = master
