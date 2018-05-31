@@ -64,11 +64,9 @@
       {%- endif -%}
         'k8s-cluster',
         'kube-node' ]
-    name: '{{ item.1.public_dns_name|default(item.1.private_dns_name, True) }}'
+    name: '{{ item.1.private_dns_name }}'
     ansible_host: >-
-      {%- if item.1.public_dns_name -%}
-        {{ omit }}
-      {%- elif item.1.public_ip_address -%}
+      {%- if item.1.public_ip_address -%}
         {{ item.1.public_ip_address }}
       {%- else -%}
         {{ item.1.private_ip_address }}
