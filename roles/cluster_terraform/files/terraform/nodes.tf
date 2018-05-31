@@ -14,6 +14,10 @@ resource "aws_instance" "nodes" {
   subnet_id = "${var.vpc_subnet_id}"
   associate_public_ip_address = "true"
 
+  root_block_device {
+    delete_on_termination = "true"
+  }
+
   tags {
     Name = "metal-k8s"
   }
@@ -36,6 +40,7 @@ resource "aws_volume_attachment" "nodes_lvm" {
   volume_id   = "${element(aws_ebs_volume.nodes.*.id, count.index)}"
   instance_id = "${element(aws_instance.nodes.*.id, count.index)}"
   count = "${var.node_count}"
+  force_detach = "true"
 }
 
 resource "aws_security_group" "allow_ssh_http" {
