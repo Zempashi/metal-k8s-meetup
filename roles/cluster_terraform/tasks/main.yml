@@ -8,7 +8,7 @@
     {%- set verb = dict(present='Create/Update', absent='Delete') -%}
     {%- set state = state|default('present') -%}
     {{ verb[state] }} metal-k8s infrastructure
-  terraform:
+  terraform_fix:
     project_path: '{{ role_path }}/files/terraform'
     state_file: '{{ tfstate_file|default(omit) }}'
     variables: >-
