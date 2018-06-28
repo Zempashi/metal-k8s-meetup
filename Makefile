@@ -4,12 +4,14 @@ default: metal-k8s
 
 METAL_K8S_DIR ?= metal-k8s
 METAL_K8S_MAKEFILE := $(METAL_K8S_DIR)/Makefile
-
-include $(METAL_K8S_MAKEFILE)
+SHELL_ENV = .shell-env
+VENV = $(SHELL_ENV)/metal-k8s
+VENV_BIN = $(VENV)/bin
+REQUIREMENTS_INSTALLED := $(SHELL_ENV)/.requirements_installed
 
 CONFIG_FILE := group_vars/all/global_config.yml
 ANSIBLE_PLAYBOOK ?= $(METAL_K8S_DIR)/$(VENV_BIN)/ansible-playbook
-METAL_K8S_VENV := $(METAL_K8S_DIR)/$(VENV)/.additional_dependency
+METAL_K8S_VENV := $(METAL_K8S_DIR)/$(SHELL_ENV)/.additional_dependency
 METAL_K8S_VENV_BIN := $(METAL_K8S_DIR)/$(VENV_BIN)
 
 EDITOR ?= vi
@@ -18,16 +20,6 @@ SHELLRC := .kubeshellrc
 ANSIBLE_ARGS ?= $(AA)
 
 ANSIBLE_CALL := $(ANSIBLE_PLAYBOOK) $(ANSIBLE_ARGS) $@
-
-define GET_KUBECONFIG
-$(eval INVENTORY_DIR := $(shell
-  $(ANSIBLE_PLAYBOOK) $(ANSIBLE_ARGS) \
-  -i localhost, playbooks/spawn_stack.yml \
-  -t display_inventory_dir \
-  -e onelogin_password='' \
-  |awk -F'"' '/inventory_dir/{print $$4}'))
-$(eval KUBECONFIG := $$(INVENTORY_DIR)/artifacts/admin.conf)
-endef
 
 $(CONFIG_FILE):
 	cp $@.sample $@
@@ -52,6 +44,7 @@ config: | $(METAL_K8S_VENV) $(CONFIG_FILE)
 
 .PHONY: metal-k8s
 metal-k8s: |$(METAL_K8S_VENV)  ## Install kubernetes on AWS
-	@$(ANSIBLE_CALL) -i ec2.py 00-site.yml
+	@$(ANSIBLE_CALL) 00-site.yml
 
-shell: _=$(guile (chdir $(METAL_K8S_DIR)))
+shell:  $(METAL_K8S_VENV)
+	make -C $(METAL_K8S_DIR) shell
